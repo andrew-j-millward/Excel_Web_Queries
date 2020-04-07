@@ -20,27 +20,14 @@ import requests, xlsxwriter, webbrowser, re, os
 ##                row_count - Number of rows to apply formatting to.
 ## Outputs      : 0 if successful, -1 if failure.
 
-def format(worksheet, row_count):
+def format(worksheet, row_count, format_cols, format_start):
 
     try:
 
-        # Specify predetermined rows of table to format.
-        cells_to_format = 'D3:D' + row_count
-        cells_to_format2 = 'E3:E' + row_count
-        cells_to_format3 = 'F3:F' + row_count
-        cells_to_format4 = 'G3:G' + row_count
-        cells_to_format5 = 'H3:H' + row_count
-        cells_to_format6 = 'I3:I' + row_count
-        cells_to_format7 = 'J3:J' + row_count
-
-        # Apply 3_color_scale formatting to those aforementioned rows.
-        worksheet.conditional_format(cells_to_format, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format2, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format3, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format4, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format5, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format6, {'type': '3_color_scale'})
-        worksheet.conditional_format(cells_to_format7, {'type': '3_color_scale'})
+        # Specify predetermined rows of table to format and format with 3_color_scale
+        for col in format_cols:
+            cells_to_format = col + str(format_start) + ":" + col + row_count
+            worksheet.conditional_format(cells_to_format, {'type': '3_color_scale'})
 
         return ( 0 ) # Success
 
@@ -57,7 +44,7 @@ def format(worksheet, row_count):
 ##                rows - Stores the total number of rows to write to.
 ## Outputs      : 0 if successful, -1 if failure.
 
-def write_spreadsheet(heading_list, row_contents_array, rows):
+def write_spreadsheet(heading_list, row_contents_array, rows, format_cols, format_start):
 
     try:
 
@@ -102,7 +89,7 @@ def write_spreadsheet(heading_list, row_contents_array, rows):
 
         # Format the worksheet.
         row_count = str(len(rows)+1)
-        format(worksheet, row_count)
+        format(worksheet, row_count, format_cols, format_start)
 
         # Close the workbook from editing to commit changes.
         workbook.close()
@@ -138,9 +125,11 @@ def open_spreadsheet():
 ## Description  : Read data from online database and exports it to Excel
 ##
 ## Inputs       : url - URL with valid table to scan.
+##                table_number - Number of table you want to copy from the page.
+##                
 ## Outputs      : 0 if successful, -1 if failure.
 
-def DataQuery(url):
+def DataQuery(url, table_number, table_class = None, format_cols = [], format_start = 2):
 
     try:
     
@@ -153,8 +142,11 @@ def DataQuery(url):
         soup = soup(data, "html.parser")
 
         # Search for a table with specified attributes.
-        table = soup.findAll("table",
-            {"class", "display sortable_datatable fixed-headers"})[0]
+        if table_class is not None:
+            table = soup.findAll("table",
+                {"class", table_class})[table_number]
+        else:
+            table = soup.findAll("table")[table_number]
 
         # Gather all header cell tags and write them to a list.
         heading_list = (table.thead.tr.findAll("th"))
@@ -171,7 +163,7 @@ def DataQuery(url):
             row_contents_array.append(row_contents)
 
         # Write data to spreadsheet.
-        write_spreadsheet(heading_list, row_contents_array, rows)
+        write_spreadsheet(heading_list, row_contents_array, rows, format_cols, format_start)
 
         # Launch Excel and open spreadsheet.
         open_spreadsheet()
@@ -188,9 +180,15 @@ def DataQuery(url):
     except IndexError:
         print("Verify the URL you are using has a suitable table.")
         return ( -1 ) # Failure
+    except AttributeError:
+        print("Insert/fix table class parameter in function and try again.")
+        return ( -1 ) # Failure
     except:
         print("Unknown error, try again.")
         return ( -1 ) # Failure
 
-# Run
-DataQuery("https://www.bls.gov/oes/current/oes_nat.htm#15-0000")
+# Example 1
+DataQuery("https://www.bls.gov/oes/current/oes_nat.htm#15-0000", 0, "display sortable_datatable fixed-headers", ["D", "E", "F", "G", "H", "I", "J"], 3)
+
+# Example 2
+#DataQuery('https://finance.yahoo.com/quote/MSFT/options', 0, None, ["C","D","E","F"], 2)
